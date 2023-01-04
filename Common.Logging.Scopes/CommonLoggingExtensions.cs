@@ -116,6 +116,8 @@ namespace Common.Logging
 				if (x != scope2)
 				{
 					@this.WarnFormat("Unbalanced stack while disposing current ThreadLoggingScope?!");
+					customStack.Collection.Push(scope2);
+					customStack.Collection.Remove(x);
 					return;
 				}
 
@@ -133,6 +135,31 @@ namespace Common.Logging
 			customStack.Collection.Push(scope);
 
 			return scope;
+		}
+
+		private static void Remove(this Stack<ThreadLoggingScope> collection, ThreadLoggingScope scopeToDeleta)
+		{
+			if (!collection.Contains(scopeToDeleta))
+				return;
+
+			lock (collection)
+			{
+				if (!collection.Contains(scopeToDeleta))
+					return;
+
+				var buffer = new Stack<ThreadLoggingScope>();
+				// unroll until find scopeToDelete
+				while (collection.Count > 0)
+				{
+					var scope = collection.Pop();
+					if (scope != scopeToDeleta)
+						buffer.Push(scope);
+				}
+
+				// reroll
+				while (buffer.Count > 0)
+					collection.Push(buffer.Pop());
+			}
 		}
 
 		public static IReadOnlyDictionary<string, object> GetScopeVariables(this ILog @this)
